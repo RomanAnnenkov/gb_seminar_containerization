@@ -103,7 +103,33 @@
 
 ### Подготовка системы для работы с lxc
 
+Установим необходимые утилиты для работы с lxc
+
+`sudo apt install lxc lxc-utils`
+
 ### Создание конейнера
+Для создания контейнера воспользуемся утилитой **lxc-create**  с параметрами
+
+`sudo lxc-create -t download -n test_container -- -d ubuntu -r focal -a amd64`
+
+Проверим что контейнер создан утилитой **lxc-ls**
+
+`sudo lxc-ls -f`
+
+![lxc ls](source/lxc_ls_create_container.png)
+
+Запустим его с помощью утилиты **lxc-start**
+
+`sudo lxc-start -n test_container`
+
+![lxc ls](source/lxc_ls_running_container.png)
+
+После того как контейнер запущен, можно подключиться к оболочке утилитой **lxc-attach**
+
+`sudo lxc-attach -n test_container`
+
+![lxc attach](source/lxc_ls_attach_container.png)
+
 
 ### Ограничение ресурсов контейнера на примере оперативной памяти
 

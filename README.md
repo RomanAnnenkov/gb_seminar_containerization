@@ -110,7 +110,7 @@
 ### Создание конейнера
 Для создания контейнера воспользуемся утилитой **lxc-create**  с параметрами
 
-`sudo lxc-create -t download -n test_container -- -d ubuntu -r focal -a amd64`
+`sudo lxc-create -t download -n test_container -- -d ubuntu -r bionic -a amd64`
 
 Проверим что контейнер создан утилитой **lxc-ls**
 

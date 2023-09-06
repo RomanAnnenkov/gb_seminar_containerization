@@ -103,56 +103,56 @@
 
 ### Подготовка системы для работы с lxc
 
-Установим необходимые утилиты для работы с lxc
+- Установим необходимые утилиты для работы с lxc
 
-`sudo apt install lxc lxc-utils`
+    `sudo apt install lxc lxc-utils`
 
 ### Создание конейнера
-Для создания контейнера воспользуемся утилитой **lxc-create**  с параметрами
+- Для создания контейнера воспользуемся утилитой **lxc-create**  с параметрами
 
-`sudo lxc-create -t download -n test_container -- -d ubuntu -r bionic -a amd64`
+    `sudo lxc-create -t download -n test_container -- -d ubuntu -r bionic -a amd64`
 
-Проверим что контейнер создан утилитой **lxc-ls**
+- Проверим что контейнер создан утилитой **lxc-ls**
 
-`sudo lxc-ls -f`
+    `sudo lxc-ls -f`
 
-![lxc ls](source/lxc_ls_create_container.png)
+    ![lxc ls](source/lxc_ls_create_container.png)
 
-Запустим его с помощью утилиты **lxc-start**
+- Запустим его с помощью утилиты **lxc-start**
 
-`sudo lxc-start -n test_container`
+    `sudo lxc-start -n test_container`
 
-![lxc ls](source/lxc_ls_running_container.png)
+    ![lxc ls](source/lxc_ls_running_container.png)
 
-После того как контейнер запущен, можно подключиться к оболочке утилитой **lxc-attach**
+- После того как контейнер запущен, можно подключиться к оболочке утилитой **lxc-attach**
 
-`sudo lxc-attach -n test_container`
+    `sudo lxc-attach -n test_container`
 
-![lxc attach](source/lxc_ls_attach_container.png)
+    ![lxc attach](source/lxc_ls_attach_container.png)
 
 
 ### Ограничение ресурсов контейнера на примере оперативной памяти
 
-Для ограничения ресурсов контейнера, можно воспользоваться конфигурационным файлом.
+- Для ограничения ресурсов контейнера, можно воспользоваться конфигурационным файлом.
 
-`sudo vim /var/lib/lxc/test_container/config`
+    `sudo vim /var/lib/lxc/test_container/config`
 
-Добавив параметр отвечающий за ограничение оперативной памяти.
+- Добавив параметр отвечающий за ограничение оперативной памяти.
 
-![lxc config](source/lxc_config_memory_limit.png)
+    ![lxc config](source/lxc_config_memory_limit.png)
 
-Для применения настроек из конфигурационного файла, нужно перезапустить контейнер.
+- Для применения настроек из конфигурационного файла, нужно перезапустить контейнер.
 
-```
-sudo lxc-stop -n test_container
-sudo lxc-start -n test_container
-```
+    ```
+    sudo lxc-stop -n test_container
+    sudo lxc-start -n test_container
+    ```
 
-Теперь проверим оперативную память доступную в контейнере.
+- Теперь проверим оперативную память доступную в контейнере.
 
-![lxc check memory](source/lxc_check_memory_limit.png)
+    ![lxc check memory](source/lxc_check_memory_limit.png)
 
-Настройки из конфигурационного файла успешно применились.
+    Настройки из конфигурационного файла успешно применились.
 
 ### Настройка автозапуска контейнера
 
@@ -166,26 +166,25 @@ sudo lxc-start -n test_container
 
 ### Настройка логирования
 
-Для включения логирования нужно задать несколько параметров в конфигурационном файле.
+- Для включения логирования нужно задать несколько параметров в конфигурационном файле.
 
-![lxc log](source/lxc_config_logs.png)
+    ![lxc log](source/lxc_config_logs.png)
 
-Параметром **_lxc.log.level_** определяется уровень подробности логирования.
-Варианты :
- - 0 = trace
- - 1 = debug 
- - 2 = info
- - 3 = notice
- - 4 = warn
- - 5 = error
- - 6 = critical
- - 7 = alert
- - 8 = fatal
+- Параметром **_lxc.log.level_** определяется уровень подробности логирования. Варианты:
+    - 0 = trace
+    - 1 = debug 
+    - 2 = info
+    - 3 = notice
+    - 4 = warn
+    - 5 = error
+    - 6 = critical
+    - 7 = alert
+    - 8 = fatal
 
-Значение по умолчанию для этого парметра  равно 5.
+    Значение по умолчанию для этого парметра  равно 5.
 
-Параметром **_lxc.log.file_** задаётся файл, в который будет происходить запись.
+- Параметром **_lxc.log.file_** задаётся файл, в который будет происходить запись.
 
-Для применения настроек, контейнер нужно перезапустить, и можно следить за изменениями в лог файле.
+    Для применения настроек, контейнер нужно перезапустить, и можно ледить за изменениями в лог файле.
 
-`sudo tail -f /var/log/lxc/test_container.log`
+    `sudo tail -f /var/log/lxc/test_container.log`

@@ -484,5 +484,213 @@ https://github.com/RomanAnnenkov/GB_oop_calculator.git
 
 ### Подготовка и запуск docker swarm кластера из 3-х виртуальных машин
 Создадим 3 виртуальные машины объединённые одним сетевым пространством, и установим на них докер.
+Все действия описанные ниже проиходят на ОС ubuntu 22.04, в случае если у вас другой дистрибутив или тип ОС, нужно будет корректировать этапы установки.
+
+- для избежания ручной настройки воспользуемся утилитой **_vagrant_**, которая по иструкции описанной в файле(**Vagrantfile**) создаст виртуальные машины, и установит **_docker_**.
+
+    - установим **_vagrant_** из репозитория
+
+        `sudo apt install vagrant`
+
+    - создадим файл **Vagrantfile**
+
+        `touch Vagrantfile`
+
+    - добавим содержимое учитывая синтаксис, и пользуясь документацией
+
+        ```
+        #
+        $setup_docker = <<SCRIPT
+        DEBIAN_FRONTEND=noninteractive
+        for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
+        # Add Docker's official GPG key:
+        sudo apt-get update
+        sudo apt-get install -y ca-certificates curl gnupg
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+        # Add the repository to Apt sources:
+        echo \
+          "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+          "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt-get update
+
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        SCRIPT
+
+        nodes = 3
+
+        instances = []
+
+        (1..nodes).each do |n| 
+          instances.push({:name => "node#{n}", :ip => "192.168.56.#{n+10}"})
+        end
+
+        File.open("./hosts", 'w') { |file| 
+          instances.each do |i|
+            file.write("#{i[:ip]} #{i[:name]} #{i[:name]}\n")
+          end
+        }
+
+        Vagrant.configure("2") do |config|
+          config.vm.provider "virtualbox" do |v|
+            v.memory = 512
+            v.cpus = 1
+          end
+
+          instances.each do |instance|
+            config.vm.define instance[:name] do |i|
+              i.vm.box = "ubuntu_focal"
+              i.vm.hostname = instance[:name]
+              i.vm.network "private_network", ip: "#{instance[:ip]}"
+              i.vm.provision "shell", inline: $setup_docker
+              if File.file?("./hosts") 
+                i.vm.provision "file", source: "hosts", destination: "/tmp/hosts"
+                i.vm.provision "shell", inline: "cat /tmp/hosts >> /etc/hosts", privileged: true
+              end
+            end
+          end
+        end
+        ```
+    - для облегчения настройки системы воспользуемся готовым **box**
+
+        `wget https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64-vagrant.box`
+
+    - после загрузки добавим его в **_vagrant_**
+
+        `vagrant box add ubuntu_focal focal-server-cloudimg-amd64-vagrant.box`
+
+- для создания и запуска виртуальных машин, выполним в директории с **Vagrantfile** команду 
+
+    `vagrant up`
+
+    После завершения работы **_vagrant up_** наши виртальные машины готовы к работе
+
+- подключимся ssh к первой ноде и создадим кластер
+    
+    `vagrant ssh node1`
+
+    `sudo docker swarm init --advertise-addr 192.168.56.11`
+
+    Так как у виртуальной машины несколько сетевых интерфейсов, необходимо указать интерфейс через который будет проходить взаимодействие между серверами кластера.
+
+    В ответ на команду инициализации, будет сгенерирована команда, для присоединения к кластеру в качестве **worker**
+
+- Для генерации ключа для подключения **manager** воспользуемся следующей командой на **node1**
+
+    `sudo docker swarm join-token manager`
+
+- подключимся по ssh на **node2** и **node3** и выполним команду подключения к кластеру с ролью **manager**
+
+    ![docker node ls](source/docker_swarm_node_ls.png)
+
+Таким образом у нас получился docker-swarm кластер из 3-х нод.
 
 ### Развёртывание сервисов в кластер
+
+Для публикации сервисов, нам понадобится **yml** файл с инструкциями, которые мы будем передавать при развёртывании сервисов.
+
+- Для разграничения запуска контейнеров по серверам, добавим **label** для каждой ноды
+
+    `docker node update --label-add MARK=dev node1`
+
+    `docker node update --label-add MARK=prod node2`
+
+    `docker node update --label-add MARK=lab node3`
+
+    ![docker swarm labels](source/docker_swarm_labels.png)
+
+    Так как все ноды имеют статус **manager**, вносить изменения можно с любой ноды.
+
+- Создадим 3 файла для разделения окружений
+
+    `touch docker-compose.dev.yml docker-compose.prod.yml docker-compose.lab.yml`
+
+- добавим содержимое в файлы на основе **docker-compose.yml**
+
+    ```
+    version: '3'
+
+    services:
+      db:
+        image: mariadb
+        environment:
+          MARIADB_ROOT_PASSWORD: passworddev
+        deploy:
+          placement:
+            constraints:
+              - "node.labels.MARK==dev"
+
+      phpmyadmin:
+        image: phpmyadmin
+        ports:
+          - 8080:80
+        deploy:
+          placement:
+            constraints:
+              - "node.labels.MARK==dev"
+
+    ```
+    
+
+    ```
+    version: '3'
+
+    services:
+      db:
+        image: mariadb
+        environment:
+          MARIADB_ROOT_PASSWORD: passwordprod
+        deploy:
+          placement:
+            constraints:
+              - "node.labels.MARK==prod"
+
+      phpmyadmin:
+        image: phpmyadmin
+        ports:
+          - 80:80
+        deploy:
+          placement:
+            constraints:
+              - "node.labels.MARK==prod"
+
+    ```
+
+    ```
+    version: '3'
+
+    services:
+      db:
+        image: mariadb
+        environment:
+          MARIADB_ROOT_PASSWORD: passwordlab
+        deploy:
+          placement:
+            constraints:
+              - "node.labels.MARK==lab"
+
+      phpmyadmin:
+        image: phpmyadmin
+        ports:
+          - 8081:80
+        deploy:
+          placement:
+            constraints:
+              - "node.labels.MARK==lab"
+
+    ```
+
+- развернем сервисы каждый в своём окружении
+
+    `docker stack deploy -c docker-compose.lab.yml lab`
+
+    `docker stack deploy -c docker-compose.prod.yml prod`
+
+    `docker stack deploy -c docker-compose.dev.yml dev`
+
+    ![docker swarm deploy services](source/docker_swarm_deploy_services.png)
+
+    Сервисы развёрнуты, мы можем наблюдать за состоянием с любой ноды.
